@@ -1,0 +1,229 @@
+﻿@page "/Response/All/{DesigneeId:int}/{ReportingEntityId:int}"
+
+@using Microsoft.EntityFrameworkCore
+@using TfsForms.Data
+@using TfsForms.Models
+@using RespModel = TfsForms.Models.Response
+@using FPModel = TfsForms.Models.FalsePositive
+
+@inject IDbContextFactory<ApplicationDbContext> DbFactory
+
+<h3>Survey for Targeted Financial Sanctions Assessment</h3>
+<p>Designee: @DesigneeId | Reporting Entity: @ReportingEntityId</p>
+
+@if (IsLoading)
+{
+    <p>Loading...</p>
+}
+else if (LoadError != null)
+{
+    <p class="text-danger">@LoadError</p>
+}
+else
+{
+    <EditForm Model="@this" OnValidSubmit="SaveAll">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        @if (Items != null && Items.Any())
+        {
+            @foreach (var item in Items.OrderBy(i => i.Question.Order))
+            {
+                <div class="mb-3">
+                    <p><strong>@item.Question.QuestionText</strong></p>
+
+                    @if (item.Question.QuestionType == "ShortText")
+                    {
+                        <InputText @bind-Value="item.Response.Answer" class="form-control" />
+                    }
+                    else if (item.Question.QuestionType == "LongText")
+                    {
+                        <InputTextArea @bind-Value="item.Response.Answer" class="form-control"></InputTextArea>
+                    }
+                    else if (item.Question.QuestionType == "Select")
+                    {
+                        <InputSelect @bind-Value="item.Response.Answer" class="form-control">
+                            <option value="">Select...</option>
+                            <option value="Option1">Option 1</option>
+                            <option value="Option2">Option 2</option>
+                        </InputSelect>
+                    }
+                    else if (item.Question.QuestionType == "Date")
+                    {
+                        <InputDate @bind-Value="item.DateValue" class="form-control" />
+                    }
+                    else if (item.Question.QuestionType == "YesNo")
+                    {
+                        <InputSelect @bind-Value="item.Response.Answer" class="form-control">
+                            <option value="">Select...</option>
+                            <option value="Yes">Yes</option>
+                            <option value="No">No</option>
+                        </InputSelect>
+
+                        @if (item.Question.Id == 15 && item.Response.Answer == "Yes")
+                        {
+                            <div class="mt-2 p-2 border rounded">
+                                <p><strong>False positive details</strong></p>
+                                <InputText @bind-Value="item.FalsePositive.MatchedName" class="form-control mb-2" placeholder="Matched name" />
+                                <InputText @bind-Value="item.FalsePositive.AccountNumber" class="form-control mb-2" placeholder="Account number" />
+                                <InputText @bind-Value="item.FalsePositive.BVN" class="form-control mb-2" placeholder="BVN" />
+                                <InputText @bind-Value="item.FalsePositive.AdditionalIdentifiers" class="form-control mb-2" placeholder="Additional identifiers" />
+                                <InputText @bind-Value="item.FalsePositive.Remarks" class="form-control mb-2" placeholder="Remarks" />
+                            </div>
+                        }
+                    }
+                    else if (item.Question.QuestionType == "Money")
+                    {
+                        <InputNumber @bind-Value="item.DecimalValue" TValue="decimal" class="form-control" />
+                    }
+                </div>
+            }
+        }
+        else
+        {
+            <p>No questions found for this survey.</p>
+        }
+
+        <button type="submit" class="btn btn-primary mt-3">
+            Submit all responses
+        </button>
+    </EditForm>
+}
+
+@code {
+    [Parameter] public int DesigneeId { get; set; }
+    [Parameter] public int ReportingEntityId { get; set; }
+
+    public List<QuestionItem> Items { get; set; } = new();
+    public bool IsLoading { get; set; } = true;
+    public string? LoadError { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        try
+        {
+            using var db = await DbFactory.CreateDbContextAsync();
+
+            var questions = await db.Questions
+                .Where(q => q.IsActive)
+                .OrderBy(q => q.Order)
+                .ToListAsync();
+
+            var responses = await db.Responses
+                .Where(r => r.DesigneeId == DesigneeId && r.ReportingEntityId == ReportingEntityId)
+                .Include(r => r.FalsePositives)
+                .ToListAsync();
+
+            var list = new List<QuestionItem>();
+
+            foreach (var q in questions)
+            {
+                var existingResponse = responses.FirstOrDefault(r => r.QuestionId == q.Id);
+
+                var item = new QuestionItem
+                {
+                    Question = q,
+                    Response = existingResponse ?? new RespModel
+                    {
+                        QuestionId = q.Id,
+                        DesigneeId = DesigneeId,
+                        ReportingEntityId = ReportingEntityId
+                    }
+                };
+
+                if (q.QuestionType == "Date" &&
+                    existingResponse != null &&
+                    DateTime.TryParse(existingResponse.Answer, out var d))
+                {
+                    item.DateValue = d;
+                }
+
+                if (q.QuestionType == "Money" &&
+                    existingResponse != null &&
+                    decimal.TryParse(existingResponse.Answer, out var m))
+                {
+                    item.DecimalValue = m;
+                }
+
+                if (q.Id == 15)
+                {
+                    item.FalsePositive = new FPModel();
+                }
+
+                list.Add(item);
+            }
+
+            Items = list;
+        }
+        catch (Exception ex)
+        {
+            LoadError = ex.Message;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task SaveAll()
+    {
+        using var db = await DbFactory.CreateDbContextAsync();
+
+        foreach (var item in Items)
+        {
+            if (item.Question.QuestionType == "Date")
+            {
+                item.Response.Answer = item.DateValue.ToString("yyyy-MM-dd");
+            }
+            else if (item.Question.QuestionType == "Money")
+            {
+                item.Response.Answer = item.DecimalValue.ToString();
+            }
+
+            var existing = await db.Responses.FirstOrDefaultAsync(r =>
+                r.QuestionId == item.Response.QuestionId &&
+                r.DesigneeId == item.Response.DesigneeId &&
+                r.ReportingEntityId == item.Response.ReportingEntityId);
+
+            if (existing == null)
+            {
+                await db.Responses.AddAsync(item.Response);
+            }
+            else
+            {
+                existing.Answer = item.Response.Answer;
+                existing.IsDraft = false;
+                existing.UpdatedAt = DateTime.Now;
+                db.Responses.Update(existing);
+                item.Response.Id = existing.Id;
+            }
+        }
+
+        await db.SaveChangesAsync();
+
+        foreach (var item in Items)
+        {
+            var isQ15 = item.Question.Id == 15;
+            var isYes = item.Response.Answer == "Yes";
+            var hasName = item.FalsePositive != null &&
+                          !string.IsNullOrWhiteSpace(item.FalsePositive.MatchedName);
+
+            if (isQ15 && isYes && hasName)
+            {
+                item.FalsePositive.ResponseId = item.Response.Id;
+                await db.FalsePositives.AddAsync(item.FalsePositive);
+            }
+        }
+
+        await db.SaveChangesAsync();
+    }
+
+    public class QuestionItem
+    {
+        public Question Question { get; set; }
+        public RespModel Response { get; set; } = new();
+        public DateTime DateValue { get; set; } = DateTime.Today;
+        public decimal DecimalValue { get; set; }
+        public FPModel FalsePositive { get; set; } = new();
+    }
+}

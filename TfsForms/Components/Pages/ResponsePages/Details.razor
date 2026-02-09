@@ -1,0 +1,58 @@
+﻿@page "/responses/details"
+@using Microsoft.EntityFrameworkCore
+@using TfsForms.Models
+@inject IDbContextFactory<TfsForms.Data.ApplicationDbContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Details</PageTitle>
+
+<h1>Details</h1>
+
+<div>
+    <h2>Response</h2>
+    <hr />
+    @if (response is null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else {
+        <dl class="row">
+            <dt class="col-sm-2">DesigneeId</dt>
+            <dd class="col-sm-10">@response.DesigneeId</dd>
+            <dt class="col-sm-2">ReportingEntityId</dt>
+            <dd class="col-sm-10">@response.ReportingEntityId</dd>
+            <dt class="col-sm-2">QuestionId</dt>
+            <dd class="col-sm-10">@response.QuestionId</dd>
+            <dt class="col-sm-2">Answer</dt>
+            <dd class="col-sm-10">@response.Answer</dd>
+            <dt class="col-sm-2">IsDraft</dt>
+            <dd class="col-sm-10">@response.IsDraft</dd>
+            <dt class="col-sm-2">CreatedAt</dt>
+            <dd class="col-sm-10">@response.CreatedAt</dd>
+            <dt class="col-sm-2">UpdatedAt</dt>
+            <dd class="col-sm-10">@response.UpdatedAt</dd>
+        </dl>
+        <div>
+            <a href="@($"/responses/edit?id={response.Id}")">Edit</a> |
+            <a href="@($"/responses")">Back to List</a>
+        </div>
+    }
+</div>
+
+@code {
+    private Response? response;
+
+    [SupplyParameterFromQuery]
+    private int Id { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        response = await context.Responses.FirstOrDefaultAsync(m => m.Id == Id);
+
+        if (response is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+}

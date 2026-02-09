@@ -1,0 +1,61 @@
+﻿
+
+@using Microsoft.EntityFrameworkCore
+@using TfsForms.Data
+@using TfsForms.Services
+
+@inject IDbContextFactory<TfsForms.Data.ApplicationDbContext> DbFactory
+@inject IAddData addData
+
+<h3>List of Designees</h3>
+<h6><em>A comprehensive record of individuals and entities designated under the Targeted Financial Sanctions List</em></h6>
+
+<RadzenDataGrid TItem="Designee" Data="Designees" AllowPaging=true AllowFiltering=true AllowSorting="true" PageSize="10" FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" FilterMode="FilterMode.SimpleWithMenu" ShowPagingSummary="true" PagerPosition="PagerPosition.Bottom" Style="">
+    <Columns>
+        <RadzenDataGridColumn Property="Name" Title="Name" />
+        <RadzenDataGridColumn Property="DesignationType" Title="Designee Type" />
+        @* <RadzenDataGridColumn Property="RcNumber" Title="RC Number" /> *@
+        <RadzenDataGridColumn Property="DateDesignated" Title="Date Designated" />
+        <RadzenDataGridColumn Property="DateDesignated" Title="">
+
+            <Template Context="row">
+
+                <a href="/Response/add/@user.TempREId/@row.Id">@(row.Responses.Count > 0 ? "Update" : "Add") Response</a>
+
+            </Template>
+        </RadzenDataGridColumn>
+
+    </Columns>
+</RadzenDataGrid>
+
+@code {
+    public List<Designee> Designees { get; set; } = new List<Designee>();
+    private HashSet<int> DesigneesWithResponse { get; set; } = new();
+
+
+    ApplicationUser user;
+
+    protected async override Task OnInitializedAsync()
+    {
+
+        var authState = await authenticationState.GetAuthenticationStateAsync();
+    //     if (authState is null || authState.User is null || authState.User.Identity is null || !authState.User.Identity.IsAuthenticated)
+    // navManager.NavigateTo("/identity/account/login");
+        user = await userManager.FindByNameAsync(authState.User.Identity.Name);
+
+        using var db = await DbFactory.CreateDbContextAsync();
+        Designees = await db.Designees.Include(addData => addData.Responses).ToListAsync();
+
+        // Precompute which designees already have responses for this entity
+        var ids = await db.Responses
+            .Where(r => r.ReportingEntityId == user.TempREId)
+            .Select(r => r.DesigneeId)
+            .Distinct()
+            .ToListAsync();
+
+        DesigneesWithResponse = ids.ToHashSet();
+
+        await base.OnInitializedAsync();
+    }
+
+}

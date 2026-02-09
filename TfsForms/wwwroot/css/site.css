@@ -1,0 +1,264 @@
+html {
+  font-size: 14px;
+}
+
+@media (min-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
+  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+}
+
+html {
+  position: relative;
+  min-height: 100%;
+}
+
+body {
+  margin-bottom: 60px;
+}
+
+.form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
+  color: var(--bs-secondary-color);
+  text-align: end;
+}
+
+.form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
+  text-align: start;
+}
+
+/* Make all top menu links visible on NFIU blue */
+.navbar-dark .navbar-nav .nav-link {
+    color: #ffffff !important;
+    font-weight: 500;
+}
+
+.navbar-dark .navbar-nav .nav-link:hover {
+        color: #F5C518 !important; /* gold accent hover */
+        text-decoration: none;
+    }
+
+/* Login/Register link fix */
+.navbar-dark .navbar-nav .nav-item .nav-link.active,
+.navbar-dark .navbar-nav .nav-item .nav-link:focus {
+    color: #ffffff !important;
+}
+
+header {
+    border-bottom: 3px solid #008753; /* NFIU green accent */
+}
+
+/* Places sidebar and content side by side */
+.re-shell {
+    display: grid; /* turns the container into a grid */
+    grid-template-columns: 250px 1fr; /* 250px for sidebar, rest for content */
+    gap: 1rem; /* small space between the two columns */
+}
+
+/* Basic sidebar look so you can see it clearly */
+.re-sidebar {
+    background-color: #0B1F4F; /* NFIU blue */
+    color: #ffffff; /* white text on the sidebar */
+    min-height: 100vh; /* sidebar stretches down the page */
+    padding: 0.75rem; /* inner spacing for comfort */
+}
+
+/* Make the sidebar links readable */
+.re-sidebar .nav-link {
+    color: #ffffff;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.25rem;
+}
+
+.re-sidebar .nav-link:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+        color: #F5C518; /* gold hover */
+    }
+
+.re-sidebar .nav-link.active {
+        background-color: #008753; /* NFIU green for active link */
+        color: #ffffff;
+    }
+/* Make main dashboard area comfortable */
+.re-shell section {
+    padding-left: 1rem; /* adds space between sidebar and text */
+}
+
+/* Optional: make sidebar fill the whole left edge neatly */
+.re-sidebar {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+/* sidebar width and the gap next to it */
+:root {
+    --sidebar: 250px; /* must match your .re-shell left column */
+    --content-gap: 1rem; /* must match your .re-shell gap */
+}
+
+/* shift header and footer so they line up with the content column */
+.navbar,
+footer,
+.footer {
+    padding-left: calc(var(--sidebar) + var(--content-gap));
+}
+
+/* keep small screens natural */
+@media (max-width: 991.98px) {
+    .navbar,
+    footer,
+    .footer {
+        padding-left: 0;
+    }
+}
+
+:root {
+    --tfs-bg: #f7f9fc;
+    --tfs-card: #ffffff;
+    --tfs-primary: #0d6efd;
+    --tfs-text: #1b2a41;
+    --tfs-muted: #6b7b93;
+    --tfs-border: #e6e9ef;
+}
+
+.tfs-wrap {
+    background: var(--tfs-bg);
+    padding: 16px 16px 120px; /* bottom space above footer */
+}
+
+.tfs-card {
+    background: var(--tfs-card);
+    border: 1px solid var(--tfs-border);
+    border-radius: 14px;
+    box-shadow: 0 4px 18px rgba(0,0,0,.06);
+    padding: 20px;
+    max-width: 1000px;
+    margin: auto;
+}
+
+.tfs-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--tfs-text);
+    margin: 0 0 8px;
+}
+
+.tfs-sub {
+    color: var(--tfs-muted);
+    font-size: 13px;
+    margin-bottom: 18px;
+}
+
+/* two-column on wide screens */
+.tfs-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+}
+
+@media (min-width: 900px) {
+    .tfs-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+        .tfs-grid .tfs-span-2 {
+            grid-column: 1 / span 2;
+        }
+}
+
+.tfs-field {
+    background: #fff;
+    border: 1px solid var(--tfs-border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    transition: box-shadow .18s ease;
+}
+
+    .tfs-field:focus-within {
+        box-shadow: 0 0 0 3px rgba(13,110,253,.15);
+        border-color: #cfe2ff;
+    }
+
+.tfs-label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: var(--tfs-text);
+}
+
+.tfs-help {
+    font-size: 12px;
+    color: var(--tfs-muted);
+    margin-top: 6px;
+}
+
+/* make inputs comfy */
+.tfs-field .form-control,
+.tfs-field .form-select,
+.tfs-field textarea {
+    border: 1px solid var(--tfs-border);
+    border-radius: 10px;
+    padding: 10px 12px;
+}
+
+/* sticky submit bar */
+.tfs-actions {
+    position: sticky;
+    bottom: 0;
+    background: var(--tfs-card);
+    border-top: 1px solid var(--tfs-border);
+    padding: 12px 0 4px;
+    margin-top: 12px;
+}
+
+    .tfs-actions .btn {
+        min-width: 240px;
+        height: 44px;
+        font-weight: 600;
+        border-radius: 10px;
+    }
+
+/* progress */
+.tfs-progress {
+    height: 8px;
+    background: #eef2f8;
+    border-radius: 999px;
+    overflow: hidden;
+    margin: 6px 0 18px;
+}
+
+    .tfs-progress > span {
+        display: block;
+        height: 100%;
+        background: var(--tfs-primary);
+        width: 0%;
+    }
+/* Force full-width single-column layout */
+.tfs-grid.single-col {
+    display: block !important;
+}
+
+    /* Make every question block full width */
+    .tfs-grid.single-col .tfs-field {
+        width: 100% !important;
+        grid-column: 1 / -1 !important;
+        display: block;
+        margin-bottom: 20px;
+    }
+
+    /* Span-2 items still remain full width in single column */
+    .tfs-grid.single-col .tfs-span-2 {
+        width: 100% !important;
+    }
+.tfs-label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+}
+
+.main-content {
+    padding-bottom: 120px;
+}

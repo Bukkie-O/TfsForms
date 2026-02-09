@@ -1,0 +1,10 @@
+﻿@page
+@using Microsoft.AspNetCore.Authorization
+@* @page "/designee" *@
+@attribute [Authorize]
+@model TfsForms.Pages.Designee.IndexModel
+@{
+}
+
+
+<component type="typeof(Index)" render-mode="ServerPrerendered" />

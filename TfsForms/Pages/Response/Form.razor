@@ -1,0 +1,358 @@
+﻿@page "/response/add/{ReportingEntityId:int}/{DesigneeId:int}/"
+@using System.Linq
+@using TfsForms.TempModels
+@using TfsForms.Models
+@using Microsoft.AspNetCore.Components.Forms
+@inject IDbContextFactory<TfsForms.Data.ApplicationDbContext> DbFactory
+@inject NavigationManager Nav
+<RadzenComponents />
+
+@if (questions.Count == 0)
+{
+    <p>Loading Questions...</p>
+}
+else
+{
+    <div class="tfs-wrap">
+        <div class="tfs-card">
+            <div class="tfs-title">@designee?.Name</div>
+            <div class="tfs-sub">Targeted Financial Sanctions Assessment</div>
+
+            @{
+                var answered = responseSession.Answers.Count(a => !string.IsNullOrWhiteSpace(a.Answer));
+                var total = responseSession.Answers.Count;
+                var pct = total == 0 ? 0 : (int)Math.Round(100.0 * answered / total);
+            }
+            <div class="tfs-progress"><span style="width:@pct%"></span></div>
+
+            <EditForm @key="DesigneeId" Model="@responseSession" OnValidSubmit="HandleSubmit">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <div class="tfs-grid" style="display:block !important;">
+                    @{
+                        var number = 1;
+                    }
+
+                    @foreach (var q in questions)
+                    {
+                        if (HideQuestion(q.Id)) { continue; }
+
+                        var a = responseSession.Answers.First(x => x.QuestionId == q.Id);
+
+                        <div class="tfs-field" style="display:block !important; width:100% !important; grid-column:1 / -1 !important; margin-bottom:20px;">
+                            <label class="tfs-label" style="display:block; margin-bottom:6px; font-weight:600;">
+                                @number. @q.QuestionText
+                            </label>
+
+                            @if (q.QuestionType == "LongText")
+                            {
+                                <InputTextArea @bind-Value="a.Answer" class="form-control" rows="3" />
+                            }
+                            else if (q.QuestionType == "ShortText")
+                            {
+                                <RadzenTextBox ReadOnly="@(q.Id == 1)" @bind-Value="a.Answer" class="form-control" />
+                            }
+                            else if (q.QuestionType == "YesNo")
+                            {
+                                <InputSelect @bind-Value="a.Answer" class="form-select">
+                                    <option value="">Select...</option>
+                                    <option>Yes</option>
+                                    <option>No</option>
+                                </InputSelect>
+                                if (q.Id == 15 && a.Answer == "Yes")
+                                {
+                                    <RadzenTemplateForm Context="fp" Data="@AddFalsePositiveModel" Submit="@(async (FalsePositive args) => { await SubmitFalsePositive(args,a.QuestionId); })">
+                                        <DataAnnotationsValidator />
+                                        <ValidationSummary Model="AddFalsePositiveModel" />
+
+                                        <RadzenRow Gap="2rem" class="rz-p-0 rz-p-lg-4">
+                                            <RadzenColumn Size="12" SizeMD="12">
+                                                <RadzenStack>
+                                                    <RadzenFieldset Text="Add False Positive">
+                                                        <RadzenStack Gap="1rem">
+
+                                                            <RadzenFormField Text="Matched Name">
+
+
+                                                                <RadzenTextBox @bind-Value=AddFalsePositiveModel.MatchedName Name="txtMatchedName" />
+                                                            </RadzenFormField>
+                                                            <RadzenRequiredValidator Component="txtMatchedName" Text="Matched Name is required" />
+
+
+                                                            <RadzenFormField Text="Account Number">
+                                                                <RadzenTextBox @bind-Value=AddFalsePositiveModel.AccountNumber Name="txtAccountNumber" />
+                                                            </RadzenFormField>
+                                                            <RadzenRegexValidator Pattern="^\d{10}$" Text="Not a valid account number" Component="txtAccountNumber" />
+
+
+                                                            <RadzenFormField Text="BVN">
+                                                                <RadzenTextBox @bind-Value=AddFalsePositiveModel.BVN Name="txtBVN" />
+                                                            </RadzenFormField>
+                                                            <RadzenRegexValidator Pattern="^\d{11}$" Text="Not a valid BVN" Component="txtBVN" />
+
+                                                            <RadzenFormField Text="Addition Identifiers">
+
+
+                                                                <RadzenTextBox @bind-Value=AddFalsePositiveModel.AdditionalIdentifiers />
+                                                            </RadzenFormField>
+
+                                                            <RadzenFormField Text="Remarks">
+
+
+                                                                <RadzenTextBox @bind-Value=AddFalsePositiveModel.Remarks />
+                                                            </RadzenFormField>
+
+                                                        </RadzenStack>
+                                                    </RadzenFieldset>
+                                                </RadzenStack>
+
+                                                <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.Center" Gap="1rem" class="rz-mt-8 rz-mb-4">
+                                                    <RadzenButton ButtonType="ButtonType.Submit" Size="ButtonSize.Large" Icon="add" Text="Add Record" />
+
+                                                </RadzenStack>
+
+
+                                            </RadzenColumn>
+                                        </RadzenRow>
+
+                                        <RadzenRow Gap="2rem" class="rz-p-0 rz-p-lg-4">
+                                            <RadzenColumn Size="12" SizeMD="12">
+
+                                                <RadzenDataGrid @ref=FalsePositivesGrid TItem="FalsePositive" Data="a.FalsePositives" AllowPaging=true AllowFiltering=true AllowSorting="true" PageSize="10" FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" FilterMode="FilterMode.SimpleWithMenu" ShowPagingSummary="true" PagerPosition="PagerPosition.Bottom" Style="">
+                                                    <Columns>
+                                                        <RadzenDataGridColumn Property="MatchedName" Title="Name" />
+                                                        <RadzenDataGridColumn Property="AccountNumber" Title="Account Number" />
+                                                        <RadzenDataGridColumn Property="BVN" Title="AccountNumber" />
+                                                        <RadzenDataGridColumn Property="AdditionalIdentifiers" Title="Additional Identifiers" />
+                                                        <RadzenDataGridColumn Property="Remarks" Title="Remarks" />
+
+
+                                                    </Columns>
+                                                </RadzenDataGrid>
+
+                                            </RadzenColumn>
+
+                                        </RadzenRow>
+
+
+
+                                    </RadzenTemplateForm>
+                                }
+                            }
+                            else if (q.QuestionType == "Select")
+                            {
+                                <InputSelect @bind-Value="a.Answer" class="form-select">
+                                    <option value="">Select...</option>
+                                </InputSelect>
+                            }
+                            else if (q.QuestionType == "Date")
+                            {
+                                <InputText @bind-Value="a.Answer" type="date" class="form-control" />
+                            }
+                            else if (q.QuestionType == "Money")
+                            {
+                                <InputText @bind-Value="a.Answer" type="number" inputmode="decimal" class="form-control" />
+                                <div class="tfs-help">Enter numbers only. Value is saved as text.</div>
+                            }
+                            else
+                            {
+                                <InputText @bind-Value="a.Answer" class="form-control" />
+                            }
+                        </div>
+
+                        number++;
+                    }
+                </div>
+
+                <div class="tfs-actions">
+                    <button type="submit" class="btn btn-primary">Submit Response</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    List<Question> questions = new();
+    List<FalsePositive> FalsePositives = new();
+    RadzenDataGrid<FalsePositive> FalsePositivesGrid ;
+    private Designee? designee;
+    [Parameter] public int DesigneeId { get; set; }
+    [Parameter] public int ReportingEntityId { get; set; }
+    public ResponseSessionModel responseSession { get; set; } = new();
+    TfsForms.Models.FalsePositive AddFalsePositiveModel = new();
+
+    private async Task HandleSubmit()
+    {
+        try
+        {
+            // Clear answers for hidden questions
+            foreach (var q in questions)
+            {
+                if (HideQuestion(q.Id))
+                {
+                    var a = responseSession.Answers.FirstOrDefault(x => x.QuestionId == q.Id);
+                    if (a != null) a.Answer = string.Empty;
+                }
+            }
+
+            // Trim all answers
+            foreach (var a in responseSession.Answers)
+                a.Answer = a.Answer?.Trim();
+
+            using var db = await DbFactory.CreateDbContextAsync();
+
+            var qIds = responseSession.Answers.Select(x => x.QuestionId).Distinct().ToList();
+
+            var existing = await db.Responses
+              .Where(r => r.ReportingEntityId == ReportingEntityId
+                          && r.DesigneeId == DesigneeId
+                          && qIds.Contains(r.QuestionId))
+              .ToListAsync();
+
+            // Take newest row per QuestionId
+            var byQ = existing
+              .GroupBy(r => r.QuestionId)
+              .ToDictionary(
+                g => g.Key,
+                g => g.OrderByDescending(x => x.UpdatedAt ?? x.CreatedAt).First()
+              );
+
+            var now = DateTime.Now;
+
+            foreach (var a in responseSession.Answers)
+            {
+                var text = a.Answer ?? string.Empty;
+
+                if (string.IsNullOrWhiteSpace(text))
+                {
+                    if (byQ.TryGetValue(a.QuestionId, out var existingRow))
+                    {
+                        db.Responses.Remove(existingRow);   // delete blank row
+                    }
+                    continue; // do not insert blanks
+                }
+                if (byQ.TryGetValue(a.QuestionId, out var row))
+                {
+                    row.Answer = a.Answer ?? string.Empty;
+                    row.IsDraft = false;
+                    row.UpdatedAt = now;
+                    if(row.QuestionId == 15 && a.FalsePositives.Count>0)
+                    {
+
+                        var newests = a.FalsePositives.Where(b => b.latest == "yes").ToList();
+                        newests.ForEach(b =>
+                        {
+                            b.ResponseId = row.Id;
+                        });
+                        db.FalsePositives.AddRange(newests);
+                    }
+                }
+                else
+                {
+
+                    db.Responses.Add(new TfsForms.Models.Response
+                    {
+                        ReportingEntityId = ReportingEntityId,
+                        DesigneeId = DesigneeId,
+                        QuestionId = a.QuestionId,
+                        Answer = a.Answer ?? string.Empty,
+                        IsDraft = false,
+                        CreatedAt = now,
+                        UpdatedAt = now,
+                        FalsePositives = a.FalsePositives
+                    });
+                }
+            }
+
+            // Cleanup of older duplicates
+            var duplicates = existing
+              .GroupBy(r => r.QuestionId)
+              .SelectMany(g => g.OrderByDescending(x => x.UpdatedAt ?? x.CreatedAt).Skip(1))
+              .ToList();
+
+            if (duplicates.Count > 0)
+                db.Responses.RemoveRange(duplicates);
+
+            await db.SaveChangesAsync();
+
+            Nav.NavigateTo($"/Response/{DesigneeId}/{ReportingEntityId}");
+        }
+        catch
+        {
+            throw;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // await LoadDataAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        using var db = await DbFactory.CreateDbContextAsync();
+
+        designee = await db.Designees.FirstOrDefaultAsync(d => d.Id == DesigneeId);
+        var re = await db.tblTempREs.SingleOrDefaultAsync(a => a.Id == ReportingEntityId);
+
+        questions = await db.Questions
+          .Where(q => q.IsActive)
+          .OrderBy(q => q.Order)
+          .ToListAsync();
+
+        var prior = await db.Responses
+        .Include(s=>s.FalsePositives)
+        .Where(r => r.ReportingEntityId == ReportingEntityId && r.DesigneeId == DesigneeId)
+        .GroupBy(r => r.QuestionId)
+        .Select(g => g.OrderByDescending(x => x.UpdatedAt ?? x.CreatedAt).First())
+        .ToListAsync();
+
+        var priorDict = prior.ToDictionary(r => r.QuestionId, r => r.Answer ?? string.Empty);
+        var priorFPDict = prior.ToDictionary(r => r.QuestionId, r => r.FalsePositives ?? new List<FalsePositive>());
+
+        responseSession = new ResponseSessionModel
+        {
+            ReportingEntityId = ReportingEntityId,
+            DesigneeId = DesigneeId,
+            Answers = questions.Select(q => new AnswerItem
+            {
+                QuestionId = q.Id,
+                Answer = q.Id == 1
+                      ? (re?.REName ?? string.Empty)
+                            : (priorDict.TryGetValue(q.Id, out var ans) ? ans : string.Empty),
+                FalsePositives = (priorFPDict.TryGetValue(q.Id, out var fp) ? fp : new List<FalsePositive>()),
+
+            }).ToList()
+        };
+
+        await base.OnInitializedAsync();
+    }
+
+    // Simple skip rule: if Q3 == "No", hide Q4..Q14
+    private bool HideQuestion(int questionId)
+
+    {
+        if (questionId == 1 || questionId == 2)
+            return true;
+        var q3 = responseSession.Answers.FirstOrDefault(x => x.QuestionId == 3)?.Answer;
+        var q8 = responseSession.Answers.FirstOrDefault(x => x.QuestionId == 8)?.Answer;
+        if (((q3 == "No" || q3 == "") && questionId >= 4 && questionId <= 18 && questionId != 15)) return true;
+        else if (q8 == "No" && questionId >= 9 && questionId <= 11) return true;
+        return false;
+    }
+    async Task SubmitFalsePositive(FalsePositive model, int qid)
+    {
+        model.latest = "yes";
+        responseSession.Answers.SingleOrDefault(a => a.QuestionId == qid).FalsePositives.Add(model);
+        await FalsePositivesGrid.Reload();
+        await InvokeAsync(StateHasChanged);
+        AddFalsePositiveModel = new();
+    }
+}

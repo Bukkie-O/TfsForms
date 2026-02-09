@@ -1,0 +1,119 @@
+﻿@page "/responses/edit"
+@using Microsoft.EntityFrameworkCore
+@using TfsForms.Models
+@inject IDbContextFactory<TfsForms.Data.ApplicationDbContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Edit</PageTitle>
+
+<h1>Edit</h1>
+
+<h2>Response</h2>
+<hr />
+@if (Response is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-4">
+            <EditForm method="post" Model="Response" OnValidSubmit="UpdateResponse" FormName="edit" Enhance>
+                <DataAnnotationsValidator />
+                <ValidationSummary role="alert"/>
+                <input type="hidden" name="Response.Id" value="@Response.Id" />
+                <div class="mb-3">
+                    <label for="designeeid" class="form-label">DesigneeId:</label>
+                    <InputNumber id="designeeid" @bind-Value="Response.DesigneeId" class="form-control" />
+                    <ValidationMessage For="() => Response.DesigneeId" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <label for="reportingentityid" class="form-label">ReportingEntityId:</label>
+                    <InputNumber id="reportingentityid" @bind-Value="Response.ReportingEntityId" class="form-control" />
+                    <ValidationMessage For="() => Response.ReportingEntityId" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <label for="questionid" class="form-label">QuestionId:</label>
+                    <InputNumber id="questionid" @bind-Value="Response.QuestionId" class="form-control" />
+                    <ValidationMessage For="() => Response.QuestionId" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <label for="answer" class="form-label">Answer:</label>
+                    <InputText id="answer" @bind-Value="Response.Answer" class="form-control" />
+                    <ValidationMessage For="() => Response.Answer" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <label for="isdraft" class="form-label">IsDraft:</label>
+                    <InputCheckbox id="isdraft" @bind-Value="Response.IsDraft" class="form-check-input" />
+                    <ValidationMessage For="() => Response.IsDraft" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <label for="createdat" class="form-label">CreatedAt:</label>
+                    <InputDate id="createdat" @bind-Value="Response.CreatedAt" class="form-control" />
+                    <ValidationMessage For="() => Response.CreatedAt" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <label for="updatedat" class="form-label">UpdatedAt:</label>
+                    <InputDate id="updatedat" @bind-Value="Response.UpdatedAt" class="form-control" />
+                    <ValidationMessage For="() => Response.UpdatedAt" class="text-danger" />
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </EditForm>
+        </div>
+    </div>
+}
+
+<div>
+    <a href="/responses">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromQuery]
+    private int Id { get; set; }
+
+    [SupplyParameterFromForm]
+    private Response? Response { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        Response ??= await context.Responses.FirstOrDefaultAsync(m => m.Id == Id);
+
+        if (Response is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+
+    // To protect from overposting attacks, enable the specific properties you want to bind to.
+    // For more information, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
+    private async Task UpdateResponse()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Attach(Response!).State = EntityState.Modified;
+
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!ResponseExists(Response!.Id))
+            {
+                NavigationManager.NavigateTo("notfound");
+            }
+            else
+            {
+                throw;
+            }
+        }
+
+        NavigationManager.NavigateTo("/responses");
+    }
+
+    private bool ResponseExists(int id)
+    {
+        using var context = DbFactory.CreateDbContext();
+        return context.Responses.Any(e => e.Id == id);
+    }
+}

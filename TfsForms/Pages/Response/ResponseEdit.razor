@@ -1,0 +1,161 @@
+﻿@using Microsoft.EntityFrameworkCore
+@using TfsForms.Data
+@page "/Response/Edit/{QuestionId:int}/{DesigneeId:int}/{ReportingEntityId:int}"
+@inject IDbContextFactory<TfsForms.Data.ApplicationDbContext> DbFactory
+
+
+@if (question == null)
+{
+    <p>Loading question...</p>
+}
+else
+{
+
+    <p><strong>@question.QuestionText</strong></p>
+    <EditForm Model=@AddModel OnValidSubmit="OnValidSubmit">
+
+        <p>
+            @if (question.QuestionType == "ShortText")
+            {
+                <InputText @bind-Value=@AddModel.Answer class="form-control" />
+            }
+            else if (question.QuestionType == "LongText")
+            {
+                <InputTextArea @bind-Value=@AddModel.Answer class="form-control"></InputTextArea>
+            }
+            else if (question.QuestionType == "Select")
+            {
+                <InputSelect @bind-Value=@AddModel.Answer class="form-control"></InputSelect>
+            }
+            else if (question.QuestionType == "Date")
+            {
+                <InputDate Value="DateV" ValueChanged="@(args => DateChanged(args))" TValue="DateTime" ValueExpression="@(() => DateV)" class="form-control" />
+
+            }
+            else if (question.QuestionType == "YesNo")
+            {
+                <InputSelect @bind-Value=@AddModel.Answer class="form-control">
+                    <option>Yes</option>
+                    <option>No</option>
+                </InputSelect>
+
+                if (question.Id == 15 && AddModel.Answer == "Yes")
+                {
+                    <RadzenTemplateForm Context="fp" Data="@AddFalsePositiveModel" Submit="@(async (FalsePositive args) => { await SubmitFalsePositive(args); })">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary Model="AddFalsePositiveModel" />
+
+                        <RadzenRow Gap="2rem" class="rz-p-0 rz-p-lg-4">
+                            <RadzenColumn Size="12" SizeMD="6">
+                                <RadzenStack>
+                                    <RadzenFieldset Text="Add False Positive">
+                                        <RadzenStack Gap="1rem">
+
+                                            <RadzenFormField Text="Matched Name">
+
+
+                                                <RadzenTextBox @bind-Value=AddFalsePositiveModel.MatchedName Name="txtMatchedName" />
+                                                <RadzenRequiredValidator Component="txtMatchedName" Text="Matched Name is required" />
+                                            </RadzenFormField>
+
+
+                                            <RadzenFormField Text="Account Number">
+                                                <RadzenTextBox @bind-Value=AddFalsePositiveModel.AccountNumber Name="txtAccountNumber" />
+                                                <RadzenRegexValidator Text="Not a valid account number" Component="txtAccountNumber" />
+                                            </RadzenFormField>
+
+
+                                            <RadzenFormField Text="BVN">
+                                                <RadzenTextBox @bind-Value=AddFalsePositiveModel.BVN Name="txtBVN" />
+                                                <RadzenRegexValidator Text="Not a valid BVN" Component="txtBVN" />
+                                            </RadzenFormField>
+
+                                            <RadzenFormField Text="Addition Identifiers">
+
+
+                                                <RadzenTextBox @bind-Value=AddFalsePositiveModel.AdditionalIdentifiers />
+                                            </RadzenFormField>
+
+                                            <RadzenFormField Text="Remarks">
+
+
+                                                <RadzenTextBox @bind-Value=AddFalsePositiveModel.Remarks />
+                                            </RadzenFormField>
+
+                                        </RadzenStack>
+                                    </RadzenFieldset>
+                                </RadzenStack>
+
+                                <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.Center" Gap="1rem" class="rz-mt-8 rz-mb-4">
+                                    <RadzenButton ButtonType="ButtonType.Submit" Size="ButtonSize.Large" Icon="add" Text="Add Record" />
+
+                                </RadzenStack>
+
+
+                            </RadzenColumn>
+                        </RadzenRow>
+
+                        
+
+                    </RadzenTemplateForm>
+                }
+            }
+            else if (question.QuestionType == "Money")
+            {
+                <InputNumber Value="DecimalV" ValueChanged="@(args => DecimalChanged(args))" TValue="decimal" ValueExpression="@(() => DecimalV)" class="form-control"></InputNumber>
+            }
+        </p>
+
+        <button type="submit" class="btn btn-info">  Submit Question @QuestionId</button>
+    </EditForm>
+
+}
+
+@code {
+    [Parameter] public int QuestionId { get; set; }
+    [Parameter] public int DesigneeId { get; set; }
+    [Parameter] public int ReportingEntityId { get; set; }
+    TfsForms.Models.Response AddModel = new();
+    TfsForms.Models.FalsePositive AddFalsePositiveModel = new();
+    Question? question;
+    private DateTime DateV { get; set; } = DateTime.Today;
+    private decimal DecimalV { get; set; }
+
+    async Task OnValidSubmit()
+    {
+        using var Db = await DbFactory.CreateDbContextAsync();
+
+        await Db.AddAsync(AddModel);
+        await Db.SaveChangesAsync();
+    }
+
+    private void DateChanged(DateTime newDate)
+    {
+
+        AddModel.Answer = newDate.ToString("yyyy-MM-dd");
+    }
+
+    private void DecimalChanged(decimal newDecimal)
+    {
+        AddModel.Answer = newDecimal.ToString();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        using var Db = await DbFactory.CreateDbContextAsync();
+
+        Question? q = await Db.Questions.FirstOrDefaultAsync(x => x.Id == QuestionId);
+        if (q != null)
+        {
+            question = q;
+        }
+        AddModel.DesigneeId = DesigneeId;
+        AddModel.QuestionId = QuestionId;
+        AddModel.ReportingEntityId = ReportingEntityId;
+    }
+
+
+    async Task SubmitFalsePositive(FalsePositive model)
+    {
+    }
+}

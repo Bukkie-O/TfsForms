@@ -1,0 +1,74 @@
+﻿@page "/responses/create"
+@using Microsoft.EntityFrameworkCore
+@using TfsForms.Models
+@inject IDbContextFactory<TfsForms.Data.ApplicationDbContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Create</PageTitle>
+
+<h1>Create</h1>
+
+<h2>Response</h2>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <EditForm method="post" Model="Response" OnValidSubmit="AddResponse" FormName="create" Enhance>
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" role="alert"/>
+            <div class="mb-3">
+                <label for="designeeid" class="form-label">DesigneeId:</label> 
+                <InputNumber id="designeeid" @bind-Value="Response.DesigneeId" class="form-control" /> 
+                <ValidationMessage For="() => Response.DesigneeId" class="text-danger" /> 
+            </div>        
+            <div class="mb-3">
+                <label for="reportingentityid" class="form-label">ReportingEntityId:</label> 
+                <InputNumber id="reportingentityid" @bind-Value="Response.ReportingEntityId" class="form-control" /> 
+                <ValidationMessage For="() => Response.ReportingEntityId" class="text-danger" /> 
+            </div>        
+            <div class="mb-3">
+                <label for="questionid" class="form-label">QuestionId:</label> 
+                <InputNumber id="questionid" @bind-Value="Response.QuestionId" class="form-control" /> 
+                <ValidationMessage For="() => Response.QuestionId" class="text-danger" /> 
+            </div>        
+            <div class="mb-3">
+                <label for="answer" class="form-label">Answer:</label> 
+                <InputText id="answer" @bind-Value="Response.Answer" class="form-control" /> 
+                <ValidationMessage For="() => Response.Answer" class="text-danger" /> 
+            </div>        
+            <div class="mb-3">
+                <label for="isdraft" class="form-label">IsDraft:</label> 
+                <InputCheckbox id="isdraft" @bind-Value="Response.IsDraft" class="form-check-input" /> 
+                <ValidationMessage For="() => Response.IsDraft" class="text-danger" /> 
+            </div>        
+            <div class="mb-3">
+                <label for="createdat" class="form-label">CreatedAt:</label> 
+                <InputDate id="createdat" @bind-Value="Response.CreatedAt" class="form-control" /> 
+                <ValidationMessage For="() => Response.CreatedAt" class="text-danger" /> 
+            </div>        
+            <div class="mb-3">
+                <label for="updatedat" class="form-label">UpdatedAt:</label> 
+                <InputDate id="updatedat" @bind-Value="Response.UpdatedAt" class="form-control" /> 
+                <ValidationMessage For="() => Response.UpdatedAt" class="text-danger" /> 
+            </div>        
+            <button type="submit" class="btn btn-primary">Create</button>
+        </EditForm>
+    </div>
+</div>
+
+<div>
+    <a href="/responses">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private Response Response { get; set; } = new();
+
+    // To protect from overposting attacks, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
+    private async Task AddResponse()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Responses.Add(Response);
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/responses");
+    }
+}

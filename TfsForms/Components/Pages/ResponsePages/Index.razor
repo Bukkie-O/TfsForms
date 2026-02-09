@@ -1,0 +1,42 @@
+﻿@page "/responses"
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using TfsForms.Models
+@using TfsForms.Data
+@implements IAsyncDisposable
+@inject IDbContextFactory<TfsForms.Data.ApplicationDbContext> DbFactory
+
+<PageTitle>Index</PageTitle>
+
+<h1>Index</h1>
+
+<p>
+    <a href="responses/create">Create New</a>
+</p>
+
+<QuickGrid Class="table" Items="context.Responses">
+    <PropertyColumn Property="response => response.DesigneeId" />
+    <PropertyColumn Property="response => response.ReportingEntityId" />
+    <PropertyColumn Property="response => response.QuestionId" />
+    <PropertyColumn Property="response => response.Answer" />
+    <PropertyColumn Property="response => response.IsDraft" />
+    <PropertyColumn Property="response => response.CreatedAt" />
+    <PropertyColumn Property="response => response.UpdatedAt" />
+
+    <TemplateColumn Context="response">
+        <a href="@($"responses/edit?id={response.Id}")">Edit</a> |
+        <a href="@($"responses/details?id={response.Id}")">Details</a> |
+        <a href="@($"responses/delete?id={response.Id}")">Delete</a>
+    </TemplateColumn>
+</QuickGrid>
+
+@code {
+    private ApplicationDbContext context = default!;
+
+    protected override void OnInitialized()
+    {
+        context = DbFactory.CreateDbContext();
+    }
+
+    public async ValueTask DisposeAsync() => await context.DisposeAsync();
+}

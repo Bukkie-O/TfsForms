@@ -1,0 +1,126 @@
+﻿@using Microsoft.EntityFrameworkCore
+@using TfsForms.Data
+@page "/Response/{DesigneeId:int}/{ReportingEntityId:int}"
+@inject IDbContextFactory<TfsForms.Data.ApplicationDbContext> DbFactory
+
+    <style>
+    .wrap-text {
+        white-space: normal;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        max-width: 300px; /* optional, to control column width */
+    }
+    </style>
+
+<h3>Survey for Targeted Financial Sanctions Assessment</h3>
+<p>@responseCount of @totalCount questions answered</p>
+
+<RadzenDataGrid TItem="Question" Data="@Questions" AllowPaging=true AllowFiltering=true PageSize="20" FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" FilterMode="FilterMode.SimpleWithMenu">
+    <Columns>
+        <RadzenDataGridColumn Property="QuestionText" Title="Questions" >
+            <Template Context="question">
+                <div class="wrap-text">
+                         @question.QuestionText
+                   
+                </div>
+                @if (question.Id == 15)
+                {
+                    <RadzenDataGrid @ref=FalsePositivesGrid TItem="FalsePositive" Data="question.Responses.LastOrDefault().FalsePositives" AllowPaging=true AllowFiltering=true AllowSorting="true" PageSize="10" FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" FilterMode="FilterMode.SimpleWithMenu" ShowPagingSummary="true" PagerPosition="PagerPosition.Bottom" Style="">
+                        <Columns>
+                        <RadzenDataGridColumn Property="MatchedName" Title="Name" />
+                        <RadzenDataGridColumn Property="AccountNumber" Title="Account Number" />
+                        <RadzenDataGridColumn Property="BVN" Title="AccountNumber" />
+                        <RadzenDataGridColumn Property="AdditionalIdentifiers" Title="Additional Identifiers" />
+                        <RadzenDataGridColumn Property="Remarks" Title="Remarks" />
+
+
+                    </Columns>
+                </RadzenDataGrid>
+                }
+            </Template>
+            </RadzenDataGridColumn>
+        <RadzenDataGridColumn Property="Response.Answer" Title="Responses" >
+            <Template>
+                @context.Responses.FirstOrDefault(a=>a.DesigneeId == DesigneeId && a.ReportingEntityId == ReportingEntityId)?.Answer
+
+            </Template>
+            </RadzenDataGridColumn>
+
+       
+        @* <RadzenDataGridColumn Property="Question.Question" Title="Questions">
+            <Template Context="q">
+                @{
+                    var answered = q.Responses.Any(r =>
+                    r.ReportingEntityId == ReportingEntityId &&
+                    r.DesigneeId == DesigneeId &&
+                    !string.IsNullOrWhiteSpace(r.Answer));
+                }
+                <RadzenLabel Text="@(answered ? "Responded" : "Pending Response")" />
+            </Template>
+        </RadzenDataGridColumn> *@
+
+
+    </Columns>
+</RadzenDataGrid>
+@*
+<RadzenTabs>
+    <Tabs>
+        <RadzenTabsItem Text="Questions">
+            <ul>
+                @foreach (var item in Questions)
+                {
+                    <li>
+                        <a href="/Response/Edit/@item.QuestionId/@DesigneeId/@ReportingEntityId">
+                            @item.Order. @item.Text
+                        </a>
+                        <span style="margin-left:8px; padding: 2px 6px;">
+                            @(item.IsAnswered ? "Answered" : "Not answered")
+                        </span>
+                    </li>
+                } 
+            </ul>
+
+        </RadzenTabsItem>
+        <RadzenTabsItem Text="Responses">
+
+        </RadzenTabsItem>
+    </Tabs>
+</RadzenTabs>
+*@
+
+@code {
+    [Parameter] public int DesigneeId { get; set; }
+    [Parameter] public int ReportingEntityId { get; set; }
+    public record Row(int QuestionId, int Order, string Text, bool IsAnswered);
+    public List<Question> Questions = new();
+    int responseCount = 0;
+    int totalCount = 0;
+    RadzenDataGrid<FalsePositive> FalsePositivesGrid;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        using var Db = await DbFactory.CreateDbContextAsync();
+
+        Questions = await Db.Questions
+        .Include(q => q.Responses
+            .Where(r => r.ReportingEntityId == ReportingEntityId
+                    && r.DesigneeId == DesigneeId
+                    && !string.IsNullOrWhiteSpace(r.Answer))).Include(c=>c.Responses).ThenInclude(d=>d.FalsePositives)
+        .Where(q => q.IsActive
+                 && q.Id != 1
+                 && q.Id != 2)
+        
+        .OrderBy(q => q.Order)
+        // .Select(q => new {q.Id, q.Order, q.QuestionText })
+        .ToListAsync();
+        
+     Questions = Questions
+    .Where(q => q.Responses.Any())
+    .ToList();
+
+        totalCount = Questions.Count;
+        responseCount = await Db.Responses.Where(a => a.DesigneeId == DesigneeId && a.ReportingEntityId == ReportingEntityId).CountAsync();
+
+    }
+
+}

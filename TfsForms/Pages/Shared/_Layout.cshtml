@@ -1,0 +1,83 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - TfsForms</title>
+    <script type="importmap"></script>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/TfsForms.styles.css" asp-append-version="true" />
+    <base href="~/" />
+    <component type="typeof(Microsoft.AspNetCore.Components.Web.HeadOutlet)"
+               render-mode="ServerPrerendered" />
+
+    <component type="typeof(Radzen.Blazor.RadzenTheme)"
+               render-mode="ServerPrerendered" param-Theme="@("material")" />
+
+
+</head>
+<body class="">
+    <header>
+        <nav class="navbar navbar-expand-lg navbar-dark p-1" style="background-color:#0B1F4F;">
+            <div class="container-fluid px-0">
+                <a class="navbar-brand d-flex align-items-center ms-1 ps-1" asp-area="" asp-page="/Index">
+                    <img src="~/images/nigsaclogo.png" alt="NIGSAC Logo"
+                    class="img-fluid me-2" style="max-height:45px; width:auto;"/>
+                </a>
+
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
+                        aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse">
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-1">
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="" asp-page="/Index">Home</a>
+                        </li>
+@*                         <li class="nav-item">
+                            <a class="nav-link" asp-area="" asp-page="/Privacy">Privacy</a>
+                        </li> *@
+                        <partial name="_LoginPartial" />
+                    </ul>
+                    
+                </div>
+            </div>
+        </nav>
+    </header>
+    <div class="container-fluid px-0">
+        <main role="main" class="pb-3">
+            <div class="container-fluid mt-3 re-shell">
+
+                <aside class="re-sidebar">
+                    <partial name="~/Pages/Shared/_Sidebar.cshtml" />
+                </aside>
+
+                <section class="p-3">
+                    @RenderBody()
+                </section>
+
+            </div>
+        </main>
+    </div>
+
+
+    <footer class="footer text-white" style="background-color:#0B1F4F;">
+        <div class="container py-2 text-center">
+            &copy; 2025 - NIGSAC TFS Reporting Portal -
+            <a class="link-light" asp-area="" asp-page="/Privacy">Privacy</a>
+        </div>
+    </footer>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+
+
+    <script src="_content/Radzen.Blazor/Radzen.Blazor.js?v=@(typeof(Radzen.Colors).Assembly.GetName().Version)"></script>
+    <script src="_framework/blazor.server.js"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+    <component type="typeof(Radzen.Blazor.RadzenComponents)"
+               render-mode="ServerPrerendered" />
+</body>
+</html>
