@@ -1,4 +1,4 @@
-﻿@page "/response/add/{ReportingEntityId:int}/{DesigneeId:int}/"
+﻿@page "/response/add/{DesigneeId:int}"
 @using System.Linq
 @using TfsForms.TempModels
 @using TfsForms.Models
@@ -179,14 +179,24 @@ else
     RadzenDataGrid<FalsePositive> FalsePositivesGrid ;
     private Designee? designee;
     [Parameter] public int DesigneeId { get; set; }
-    [Parameter] public int ReportingEntityId { get; set; }
+    // [Parameter] public int ReportingEntityId { get; set; }
     public ResponseSessionModel responseSession { get; set; } = new();
     TfsForms.Models.FalsePositive AddFalsePositiveModel = new();
+
+
+    ApplicationUser user;
+    string UserRole;
+    string REID;
+
 
     private async Task HandleSubmit()
     {
         try
         {
+            var authState = await authenticationState.GetAuthenticationStateAsync();
+            //     if (authState is null || authState.User is null || authState.User.Identity is null || !authState.User.Identity.IsAuthenticated)
+            // navManager.NavigateTo("/identity/account/login");
+            user = await userManager.FindByNameAsync(authState.User.Identity.Name);
             // Clear answers for hidden questions
             foreach (var q in questions)
             {
@@ -205,12 +215,38 @@ else
 
             var qIds = responseSession.Answers.Select(x => x.QuestionId).Distinct().ToList();
 
-            var existing = await db.Responses
-              .Where(r => r.ReportingEntityId == ReportingEntityId
-                          && r.DesigneeId == DesigneeId
-                          && qIds.Contains(r.QuestionId))
-              .ToListAsync();
-
+            List<Models.Response> existing = new();
+            var query = db.Responses.AsQueryable();
+            if (await userManager.IsInRoleAsync(user, "RapidAML"))
+            {
+                UserRole = "RapidAML";
+                REID = user.RapidAMLReportingEntityId;
+                existing = await db.Responses
+                  .Where(r => r.CreatedBy.RapidAMLReportingEntityId == user.RapidAMLReportingEntityId
+                              && r.DesigneeId == DesigneeId
+                              && qIds.Contains(r.QuestionId))
+                  .ToListAsync();
+            }
+            else if (await userManager.IsInRoleAsync(user, "GoAML"))
+            {
+                REID = user.GoAMLReportingEntityId.ToString();
+                UserRole = "GoAML";
+                existing = await db.Responses
+                  .Where(r => r.CreatedBy.GoAMLReportingEntityId == user.GoAMLReportingEntityId
+                              && r.DesigneeId == DesigneeId
+                              && qIds.Contains(r.QuestionId))
+                  .ToListAsync();
+            }
+            else if (await userManager.IsInRoleAsync(user, "CRIMS"))
+            {
+                REID = user.CRIMSReportingEntityId.ToString();
+                UserRole = "CRIMS";
+                existing = await db.Responses
+                  .Where(r => r.CreatedBy.CRIMSReportingEntityId == user.CRIMSReportingEntityId
+                              && r.DesigneeId == DesigneeId
+                              && qIds.Contains(r.QuestionId))
+                  .ToListAsync();
+            }
             // Take newest row per QuestionId
             var byQ = existing
               .GroupBy(r => r.QuestionId)
@@ -254,14 +290,15 @@ else
 
                     db.Responses.Add(new TfsForms.Models.Response
                     {
-                        ReportingEntityId = ReportingEntityId,
+                        // ReportingEntityId = ReportingEntityId,
                         DesigneeId = DesigneeId,
                         QuestionId = a.QuestionId,
                         Answer = a.Answer ?? string.Empty,
                         IsDraft = false,
                         CreatedAt = now,
                         UpdatedAt = now,
-                        FalsePositives = a.FalsePositives
+                        FalsePositives = a.FalsePositives,
+                        CreatedById = user.Id
                     });
                 }
             }
@@ -277,7 +314,7 @@ else
 
             await db.SaveChangesAsync();
 
-            Nav.NavigateTo($"/Response/{DesigneeId}/{ReportingEntityId}");
+            Nav.NavigateTo($"/Response/{DesigneeId}");
         }
         catch
         {
@@ -300,37 +337,82 @@ else
         using var db = await DbFactory.CreateDbContextAsync();
 
         designee = await db.Designees.FirstOrDefaultAsync(d => d.Id == DesigneeId);
-        var re = await db.tblTempREs.SingleOrDefaultAsync(a => a.Id == ReportingEntityId);
+        // var re = await db.tblTempREs.SingleOrDefaultAsync(a => a.Id == ReportingEntityId);
 
         questions = await db.Questions
           .Where(q => q.IsActive)
           .OrderBy(q => q.Order)
           .ToListAsync();
 
-        var prior = await db.Responses
-        .Include(s=>s.FalsePositives)
-        .Where(r => r.ReportingEntityId == ReportingEntityId && r.DesigneeId == DesigneeId)
-        .GroupBy(r => r.QuestionId)
-        .Select(g => g.OrderByDescending(x => x.UpdatedAt ?? x.CreatedAt).First())
-        .ToListAsync();
+
+        var authState = await authenticationState.GetAuthenticationStateAsync();
+        //     if (authState is null || authState.User is null || authState.User.Identity is null || !authState.User.Identity.IsAuthenticated)
+        // navManager.NavigateTo("/identity/account/login");
+        user = await userManager.FindByNameAsync(authState.User.Identity.Name);
+
+
+        var priorQuery = db.Responses.AsQueryable();
+        List<Models.Response> prior = new();
+        if (await userManager.IsInRoleAsync(user, "RapidAML"))
+        {
+            prior = await db.Responses
+       .Include(s => s.FalsePositives)
+       .Where(r => r.CreatedBy.RapidAMLReportingEntityId == REID && r.DesigneeId == DesigneeId)
+       .GroupBy(r => r.QuestionId)
+       .Select(g => g.OrderByDescending(x => x.UpdatedAt ?? x.CreatedAt).First())
+       .ToListAsync();
+        }
+        else if (await userManager.IsInRoleAsync(user, "GoAML"))
+        {
+            prior = await db.Responses
+       .Include(s => s.FalsePositives)
+       .Where(r => r.CreatedBy.GoAMLReportingEntityId.ToString() == REID && r.DesigneeId == DesigneeId)
+       .GroupBy(r => r.QuestionId)
+       .Select(g => g.OrderByDescending(x => x.UpdatedAt ?? x.CreatedAt).First())
+       .ToListAsync();
+        }
+        else if (await userManager.IsInRoleAsync(user, "CRIMS"))
+        {
+            prior = await db.Responses
+       .Include(s => s.FalsePositives)
+       .Where(r => r.CreatedBy.CRIMSReportingEntityId == REID && r.DesigneeId == DesigneeId)
+       .GroupBy(r => r.QuestionId)
+       .Select(g => g.OrderByDescending(x => x.UpdatedAt ?? x.CreatedAt).First())
+       .ToListAsync();
+        }
+
+       
 
         var priorDict = prior.ToDictionary(r => r.QuestionId, r => r.Answer ?? string.Empty);
         var priorFPDict = prior.ToDictionary(r => r.QuestionId, r => r.FalsePositives ?? new List<FalsePositive>());
 
+        // responseSession = new ResponseSessionModel
+        // {
+        //     ReportingEntityId = ReportingEntityId,
+        //     DesigneeId = DesigneeId,
+        //     Answers = questions.Select(q => new AnswerItem
+        //     {
+        //         QuestionId = q.Id,
+        //         Answer = q.Id == 1
+        //               ? (re?.REName ?? string.Empty)
+        //                     : (priorDict.TryGetValue(q.Id, out var ans) ? ans : string.Empty),
+        //         FalsePositives = (priorFPDict.TryGetValue(q.Id, out var fp) ? fp : new List<FalsePositive>()),
+
+        //     }).ToList()
+        // };
+
+
         responseSession = new ResponseSessionModel
         {
-            ReportingEntityId = ReportingEntityId,
             DesigneeId = DesigneeId,
             Answers = questions.Select(q => new AnswerItem
             {
                 QuestionId = q.Id,
-                Answer = q.Id == 1
-                      ? (re?.REName ?? string.Empty)
-                            : (priorDict.TryGetValue(q.Id, out var ans) ? ans : string.Empty),
-                FalsePositives = (priorFPDict.TryGetValue(q.Id, out var fp) ? fp : new List<FalsePositive>()),
-
+                Answer = priorDict.TryGetValue(q.Id, out var ans) ? ans : string.Empty,
+                FalsePositives = priorFPDict.TryGetValue(q.Id, out var fp) ? fp : new List<FalsePositive>()
             }).ToList()
         };
+
 
         await base.OnInitializedAsync();
     }

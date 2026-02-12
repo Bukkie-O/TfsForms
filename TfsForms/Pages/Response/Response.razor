@@ -1,52 +1,67 @@
 ﻿@using Microsoft.EntityFrameworkCore
 @using TfsForms.Data
-@page "/Response/{DesigneeId:int}/{ReportingEntityId:int}"
+@page "/Response/{DesigneeId:int}"
 @inject IDbContextFactory<TfsForms.Data.ApplicationDbContext> DbFactory
 
-    <style>
+<style>
     .wrap-text {
         white-space: normal;
         word-wrap: break-word;
         overflow-wrap: break-word;
         max-width: 300px; /* optional, to control column width */
     }
-    </style>
+</style>
 
 <h3>Survey for Targeted Financial Sanctions Assessment</h3>
 <p>@responseCount of @totalCount questions answered</p>
 
 <RadzenDataGrid TItem="Question" Data="@Questions" AllowPaging=true AllowFiltering=true PageSize="20" FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" FilterMode="FilterMode.SimpleWithMenu">
     <Columns>
-        <RadzenDataGridColumn Property="QuestionText" Title="Questions" >
+        <RadzenDataGridColumn Property="QuestionText" Title="Questions">
             <Template Context="question">
                 <div class="wrap-text">
-                         @question.QuestionText
-                   
+                    @question.QuestionText
+
                 </div>
                 @if (question.Id == 15)
                 {
                     <RadzenDataGrid @ref=FalsePositivesGrid TItem="FalsePositive" Data="question.Responses.LastOrDefault().FalsePositives" AllowPaging=true AllowFiltering=true AllowSorting="true" PageSize="10" FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" FilterMode="FilterMode.SimpleWithMenu" ShowPagingSummary="true" PagerPosition="PagerPosition.Bottom" Style="">
                         <Columns>
-                        <RadzenDataGridColumn Property="MatchedName" Title="Name" />
-                        <RadzenDataGridColumn Property="AccountNumber" Title="Account Number" />
-                        <RadzenDataGridColumn Property="BVN" Title="AccountNumber" />
-                        <RadzenDataGridColumn Property="AdditionalIdentifiers" Title="Additional Identifiers" />
-                        <RadzenDataGridColumn Property="Remarks" Title="Remarks" />
+                            <RadzenDataGridColumn Property="MatchedName" Title="Name" />
+                            <RadzenDataGridColumn Property="AccountNumber" Title="Account Number" />
+                            <RadzenDataGridColumn Property="BVN" Title="AccountNumber" />
+                            <RadzenDataGridColumn Property="AdditionalIdentifiers" Title="Additional Identifiers" />
+                            <RadzenDataGridColumn Property="Remarks" Title="Remarks" />
 
 
-                    </Columns>
-                </RadzenDataGrid>
+                        </Columns>
+                    </RadzenDataGrid>
                 }
             </Template>
-            </RadzenDataGridColumn>
-        <RadzenDataGridColumn Property="Response.Answer" Title="Responses" >
-            <Template>
-                @context.Responses.FirstOrDefault(a=>a.DesigneeId == DesigneeId && a.ReportingEntityId == ReportingEntityId)?.Answer
-
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn Property="Response.Answer" Title="Responses">
+            <Template Context="question">
+                @{
+                    string answer = null;
+                    if (UserRole == "RapidAML")
+                    {
+                        answer = question.Responses.FirstOrDefault(a => a.DesigneeId == DesigneeId && a.CreatedBy.RapidAMLReportingEntityId == REID)?.Answer;
+                    }
+                    else if (UserRole == "GoAML")
+                    {
+                        answer = question.Responses.FirstOrDefault(a => a.DesigneeId == DesigneeId && a.CreatedBy.GoAMLReportingEntityId.ToString() == REID)?.Answer;
+                    }
+                    else if (UserRole == "CRIMS")
+                    {
+                        answer = question.Responses.FirstOrDefault(a => a.DesigneeId == DesigneeId && a.CreatedBy.CRIMSReportingEntityId == REID)?.Answer;
+                    }
+                }
+                @answer
             </Template>
-            </RadzenDataGridColumn>
+            
+        </RadzenDataGridColumn>
 
-       
+
         @* <RadzenDataGridColumn Property="Question.Question" Title="Questions">
             <Template Context="q">
                 @{
@@ -90,36 +105,100 @@
 
 @code {
     [Parameter] public int DesigneeId { get; set; }
-    [Parameter] public int ReportingEntityId { get; set; }
+    // [Parameter] public int ReportingEntityId { get; set; }
     public record Row(int QuestionId, int Order, string Text, bool IsAnswered);
     public List<Question> Questions = new();
     int responseCount = 0;
     int totalCount = 0;
     RadzenDataGrid<FalsePositive> FalsePositivesGrid;
 
+    ApplicationUser user;
+    string UserRole;
+    string REID;
+
+
     protected override async Task OnParametersSetAsync()
     {
         using var Db = await DbFactory.CreateDbContextAsync();
 
-        Questions = await Db.Questions
-        .Include(q => q.Responses
-            .Where(r => r.ReportingEntityId == ReportingEntityId
-                    && r.DesigneeId == DesigneeId
-                    && !string.IsNullOrWhiteSpace(r.Answer))).Include(c=>c.Responses).ThenInclude(d=>d.FalsePositives)
-        .Where(q => q.IsActive
-                 && q.Id != 1
-                 && q.Id != 2)
-        
-        .OrderBy(q => q.Order)
-        // .Select(q => new {q.Id, q.Order, q.QuestionText })
-        .ToListAsync();
-        
-     Questions = Questions
-    .Where(q => q.Responses.Any())
-    .ToList();
+        var authState = await authenticationState.GetAuthenticationStateAsync();
+        //     if (authState is null || authState.User is null || authState.User.Identity is null || !authState.User.Identity.IsAuthenticated)
+        // navManager.NavigateTo("/identity/account/login");
+        user = await userManager.FindByNameAsync(authState.User.Identity.Name);
+
+        // var query = Db.Questions.Include(a=>a.Responses).ThenInclude(b=>b.CreatedBy).AsQueryable();
+        if (await userManager.IsInRoleAsync(user, "RapidAML"))
+        {
+            UserRole = "RapidAML";
+            REID = user.RapidAMLReportingEntityId;
+
+            Questions = await Db.Questions
+            .Include(q => q.Responses
+                .Where(r => r.CreatedBy.RapidAMLReportingEntityId == user.RapidAMLReportingEntityId
+                        && r.DesigneeId == DesigneeId
+                        && !string.IsNullOrWhiteSpace(r.Answer)))
+                        .ThenInclude(a=>a.CreatedBy)
+                        .Include(c => c.Responses)
+                        .ThenInclude(d => d.FalsePositives)
+            .Where(q => q.IsActive
+                     && q.Id != 1
+                     && q.Id != 2)
+
+            .OrderBy(q => q.Order)
+            // .Select(q => new {q.Id, q.Order, q.QuestionText })
+            .ToListAsync();
+        }
+        else if (await userManager.IsInRoleAsync(user, "GoAML"))
+        {
+            REID = user.GoAMLReportingEntityId.ToString();
+            UserRole = "GoAML";
+            Questions = await Db.Questions
+           .Include(q => q.Responses
+               .Where(r => r.CreatedBy.GoAMLReportingEntityId == user.GoAMLReportingEntityId
+                       && r.DesigneeId == DesigneeId
+                       && !string.IsNullOrWhiteSpace(r.Answer)))
+                       .ThenInclude(a=>a.CreatedBy)
+                       .Include(c => c.Responses)
+                       .ThenInclude(d => d.FalsePositives)
+           .Where(q => q.IsActive
+                    && q.Id != 1
+                    && q.Id != 2)
+
+           .OrderBy(q => q.Order)
+           // .Select(q => new {q.Id, q.Order, q.QuestionText })
+           .ToListAsync();
+        }
+        else if (await userManager.IsInRoleAsync(user, "CRIMS"))
+        {
+            REID = user.CRIMSReportingEntityId.ToString();
+            UserRole = "CRIMS";
+            Questions = await Db.Questions
+           .Include(q => q.Responses
+               .Where(r => r.CreatedBy.CRIMSReportingEntityId == user.CRIMSReportingEntityId
+                       && r.DesigneeId == DesigneeId
+                       && !string.IsNullOrWhiteSpace(r.Answer)))
+                       .ThenInclude(a => a.CreatedBy)
+                       .Include(c => c.Responses)
+                       .ThenInclude(d => d.FalsePositives)
+           .Where(q => q.IsActive
+                    && q.Id != 1
+                    && q.Id != 2)
+
+           .OrderBy(q => q.Order)
+           // .Select(q => new {q.Id, q.Order, q.QuestionText })
+           .ToListAsync();
+        }
+
+        Questions = Questions
+       .Where(q => q.Responses.Any())
+       .ToList();
 
         totalCount = Questions.Count;
-        responseCount = await Db.Responses.Where(a => a.DesigneeId == DesigneeId && a.ReportingEntityId == ReportingEntityId).CountAsync();
+        if (await userManager.IsInRoleAsync(user, "RapidAML"))
+        {
+            responseCount = await Db.Responses.Where(a => a.DesigneeId == DesigneeId && a.CreatedBy.RapidAMLReportingEntityId == user.RapidAMLReportingEntityId).CountAsync();
+
+        }
 
     }
 

@@ -20,7 +20,7 @@
 
             <Template Context="row">
 
-                <a href="/Response/add/@user.TempREId/@row.Id">@(row.Responses.Count > 0 ? "Update" : "Add") Response</a>
+                <a href="/Response/add/@row.Id">@(row.Responses.Count > 0 ? "Update" : "Add") Response</a>
 
             </Template>
         </RadzenDataGridColumn>
@@ -31,7 +31,7 @@
 @code {
     public List<Designee> Designees { get; set; } = new List<Designee>();
     private HashSet<int> DesigneesWithResponse { get; set; } = new();
-
+    string REID;
 
     ApplicationUser user;
 
@@ -39,19 +39,49 @@
     {
 
         var authState = await authenticationState.GetAuthenticationStateAsync();
-    //     if (authState is null || authState.User is null || authState.User.Identity is null || !authState.User.Identity.IsAuthenticated)
-    // navManager.NavigateTo("/identity/account/login");
+        //     if (authState is null || authState.User is null || authState.User.Identity is null || !authState.User.Identity.IsAuthenticated)
+        // navManager.NavigateTo("/identity/account/login");
         user = await userManager.FindByNameAsync(authState.User.Identity.Name);
+
+        List<int> ids = new();
 
         using var db = await DbFactory.CreateDbContextAsync();
         Designees = await db.Designees.Include(addData => addData.Responses).ToListAsync();
 
-        // Precompute which designees already have responses for this entity
-        var ids = await db.Responses
-            .Where(r => r.ReportingEntityId == user.TempREId)
+        // Determine REID based on user's role
+        if (await userManager.IsInRoleAsync(user, "RapidAML"))
+        {
+            REID = user.RapidAMLReportingEntityId;
+            ids = await db.Responses
+            .Where(r => r.CreatedBy.RapidAMLReportingEntityId == user.RapidAMLReportingEntityId)
             .Select(r => r.DesigneeId)
             .Distinct()
             .ToListAsync();
+        }
+        else if (await userManager.IsInRoleAsync(user, "GoAML"))
+        {
+            ids = await db.Responses
+           .Where(r => r.CreatedBy.GoAMLReportingEntityId == user.GoAMLReportingEntityId)
+           .Select(r => r.DesigneeId)
+           .Distinct()
+           .ToListAsync();
+            REID = user.GoAMLReportingEntityId?.ToString();
+        }
+        else if (await userManager.IsInRoleAsync(user, "CRIMS"))
+        {
+            ids = await db.Responses
+           .Where(r => r.CreatedBy.CRIMSReportingEntityId == user.CRIMSReportingEntityId)
+           .Select(r => r.DesigneeId)
+           .Distinct()
+           .ToListAsync();
+            REID = user.CRIMSReportingEntityId;
+        }
+       
+        
+       
+
+        // Precompute which designees already have responses for this entity
+        
 
         DesigneesWithResponse = ids.ToHashSet();
 

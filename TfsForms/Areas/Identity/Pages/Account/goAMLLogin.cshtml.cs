@@ -3,9 +3,12 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.EntityFrameworkCore;
 using NuGet.Protocol;
 using System.ComponentModel.DataAnnotations;
 using System.Net.Http;
+using TfsForms.Data;
 
 namespace TfsForms.Areas.Identity.Pages.Account
 {
@@ -16,21 +19,29 @@ namespace TfsForms.Areas.Identity.Pages.Account
         private readonly IHttpClientFactory httpClientFactory;
         private readonly UserManager<ApplicationUser> userManager;
         private readonly IUserStore<ApplicationUser> userStore;
+        private readonly IDbContextFactory<ApplicationDbContext> factory;
         private readonly IUserEmailStore<ApplicationUser> emailStore;
 
         public goAMLLoginModel(SignInManager<ApplicationUser> signInManager, 
             ILogger<LoginModel> logger, 
             IHttpClientFactory httpClientFactory,
              UserManager<ApplicationUser> userManager,
-              IUserStore<ApplicationUser> userStore)
+              IUserStore<ApplicationUser> userStore,
+              IDbContextFactory<ApplicationDbContext> factory)
         {
             _signInManager = signInManager;
             _logger = logger;
             this.httpClientFactory = httpClientFactory;
             this.userManager = userManager;
             this.userStore = userStore;
+            this.factory = factory;
             this.emailStore = GetEmailStore();
         }
+
+
+        public SelectList GoAMLREs { get; set; }
+
+
 
         /// <summary>
         ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
@@ -68,14 +79,18 @@ namespace TfsForms.Areas.Identity.Pages.Account
             ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
             ///     directly from your code. This API may change or be removed in future releases.
             /// </summary>
-            [Required]
-            [EmailAddress]
-            public string Email { get; set; }
+            //[Required]
+            //[EmailAddress]
+            //public string Email { get; set; }
 
 
             [Required]
-            
+
             public string UserName { get; set; }
+
+            [Required]
+
+            public string GUID { get; set; }
 
             /// <summary>
             ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
@@ -107,14 +122,42 @@ namespace TfsForms.Areas.Identity.Pages.Account
 
             ExternalLogins = (await _signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
 
+            try
+            {
+                using var db = await factory.CreateDbContextAsync();
+
+                GoAMLREs = new SelectList(await db.lkGoAMLREs.ToListAsync(), "GoAMLId", "OrganizationName");
+            }
+            catch (Exception)
+            {
+
+            }
+
             ReturnUrl = returnUrl;
         }
 
         public class LoginObject
         {
-            public string username { get; set; }
+            public string email { get; set; }
             public string password { get; set; }
-            public int tokenlifetime { get; set; }
+            public string guid { get; set; }
+        }
+
+
+
+        public class GoAMLLoginResponse
+        {
+            public GoAMLUserData data { get; set; }
+            public string statusCode { get; set; }
+            public string statusDescription { get; set; }
+        }
+
+        public class GoAMLUserData
+        {
+            public string userId { get; set; }
+            public string email { get; set; }
+            public string userName { get; set; }
+            public int guid { get; set; }
         }
 
 
@@ -157,46 +200,60 @@ namespace TfsForms.Areas.Identity.Pages.Account
 
                 var loginObject = new LoginObject
                 {
-                    username = Input.UserName,
+                    email = Input.UserName,
                     password = Input.Password,
-                    tokenlifetime = 60
+                    guid = Input.GUID
 
                 };
 
                 
 
-                var resp = await http.PostAsJsonAsync("https://goaml.nfiu.gov.ng/api/Authenticate/GetToken", loginObject);
+                var resp = await http.PostAsJsonAsync("https://apps.nfiu.gov.ng/nfiunigsac/api/GoAML/login", loginObject);
 
                 if (resp.IsSuccessStatusCode)
                 {
-                    
+                    var loginResponse = await resp.Content.ReadFromJsonAsync<GoAMLLoginResponse>();
 
-
-                    var loggedInUser = await userManager.FindByNameAsync(Input.UserName); //try to get the user from the local db
-                    if (loggedInUser is null) // if user is not already on the local db, create user
+                    if (loginResponse?.statusCode == "00" && loginResponse.data != null)
                     {
-                        var user = CreateUser();
-                        await userStore.SetUserNameAsync(user, Input.UserName, CancellationToken.None);
-                        await emailStore.SetEmailAsync(user, Input.Email, CancellationToken.None);
-                        var resultCreated = await userManager.CreateAsync(user, Input.Password);
+                        var email = loginResponse.data.email;
 
-                        if (!resultCreated.Succeeded) //if user creation succeeds, log user in
+                        var loggedInUser = await userManager.FindByNameAsync(Input.UserName); //try to get the user from the local db
+                        if (loggedInUser is null) // if user is not already on the local db, create user
                         {
-                            //await _signInManager.SignInAsync(user, isPersistent: false);
-                            //return LocalRedirect(returnUrl);
+                            var user = CreateUser();
+                            await userStore.SetUserNameAsync(user, Input.UserName, CancellationToken.None);
+                            await emailStore.SetEmailAsync(user, email, CancellationToken.None);
+                            user.GoAMLReportingEntityId = int.Parse( loginObject.guid);
+                            var resultCreated = await userManager.CreateAsync(user, Input.Password);
 
-                            ModelState.AddModelError(string.Empty, "Invalid login attempt.");
-                            return Page();
+                            if (!resultCreated.Succeeded) //if user creation succeeds, log user in
+                            {
+                                //await _signInManager.SignInAsync(user, isPersistent: false);
+                                //return LocalRedirect(returnUrl);
+
+                                ModelState.AddModelError(string.Empty, "Invalid login attempt.");
+                                return Page();
+                            }
+
+                            // Add user to RapidAML role
+                            var roleResult = await userManager.AddToRoleAsync(user, "GoAML");
+                            if (!roleResult.Succeeded)
+                            {
+                                _logger.LogWarning("Failed to add user {Email} to RapidAML role", Input.UserName);
+                            }
+
+                            loggedInUser = user;
                         }
-                    }
-                    else
-                    {
-                        loggedInUser = await userManager.FindByNameAsync(Input.UserName);
-                        
-                    }
+                        else
+                        {
+                            loggedInUser = await userManager.FindByNameAsync(Input.UserName);
 
-                    await _signInManager.SignInAsync(loggedInUser, isPersistent: false);
-                    return LocalRedirect(returnUrl);
+                        }
+
+                        await _signInManager.SignInAsync(loggedInUser, isPersistent: false);
+                        return LocalRedirect(returnUrl);
+                    }
                 }
 
                 //var result = await _signInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: false);

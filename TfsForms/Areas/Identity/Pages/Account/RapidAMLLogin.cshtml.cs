@@ -118,16 +118,16 @@ namespace TfsForms.Areas.Identity.Pages.Account
             await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
 
             ExternalLogins = (await _signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
-            try
-            {
-                using var db = await factory.CreateDbContextAsync();
+                try
+                {
+                    using var db = await factory.CreateDbContextAsync();
 
-                RapidAMLREs = new SelectList(await db.lkRapidAMLREs.ToListAsync(), "RapidAMLId", "OrganizationName");
-            }
-            catch (Exception)
-            {
+                    RapidAMLREs = new SelectList(await db.lkRapidAMLREs.ToListAsync(), "RapidAMLId", "OrganizationName");
+                }
+                catch (Exception)
+                {
 
-            }
+                }
 
 
             ReturnUrl = returnUrl;
@@ -212,7 +212,14 @@ namespace TfsForms.Areas.Identity.Pages.Account
                             return Page();
                         }
 
-                        loggedInUser = await userManager.FindByNameAsync(Input.Email);
+                        // Add user to RapidAML role
+                        var roleResult = await userManager.AddToRoleAsync(user, "RapidAML");
+                        if (!roleResult.Succeeded)
+                        {
+                            _logger.LogWarning("Failed to add user {Email} to RapidAML role", Input.Email);
+                        }
+
+                        loggedInUser = user;
                     }
                     else
                     {

@@ -8,7 +8,9 @@ namespace TfsForms.Models
         public virtual Designee Designee { get; set; }
         public int DesigneeId { get; set; }
         //public virtual ReportingEntity ReportingEntity { get; set; }
-        public int ReportingEntityId { get; set; }
+        //public int ReportingEntityId { get; set; }
+        public virtual ApplicationUser? CreatedBy { get; set; }
+        public string? CreatedById { get; set; }
         public virtual Question Question { get; set; }
         public int QuestionId { get; set; }
         [StringLength(2000)] public string Answer { get; set; } = string.Empty;

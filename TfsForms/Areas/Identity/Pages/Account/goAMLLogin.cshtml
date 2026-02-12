@@ -13,16 +13,29 @@
                 <h2></h2>
                 <hr />
                 <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
-                <div class="form-floating mb-3">
+                @* <div class="form-floating mb-3">
                     <input asp-for="Input.UserName" class="form-control" autocomplete="username" aria-required="true" placeholder="name@example.com" />
                     <label asp-for="Input.UserName" class="form-label">UserName</label>
                     <span asp-validation-for="Input.UserName" class="text-danger"></span>
+                </div> *@
+
+
+                <div class="mb-3">
+                    <label asp-for="Input.GUID" class="form-label">Organization</label>
+                    <select asp-for="Input.GUID"
+                            asp-items="Model.GoAMLREs"
+                            class="form-select"
+                            id="organizationSelect"
+                            aria-required="true">
+                        <option value="">-- Select --</option>
+                    </select>
+                    <span asp-validation-for="Input.GUID" class="text-danger"></span>
                 </div>
 
                 <div class="form-floating mb-3">
-                    <input asp-for="Input.Email" class="form-control" autocomplete="username" aria-required="true" placeholder="name@example.com" />
-                    <label asp-for="Input.Email" class="form-label">Email</label>
-                    <span asp-validation-for="Input.Email" class="text-danger"></span>
+                    <input asp-for="Input.UserName" class="form-control" autocomplete="username" aria-required="true" placeholder="username" />
+                    <label asp-for="Input.UserName" class="form-label">UserName</label>
+                    <span asp-validation-for="Input.UserName" class="text-danger"></span>
                 </div>
                 <div class="form-floating mb-3">
                     <input asp-for="Input.Password" class="form-control" autocomplete="current-password" aria-required="true" placeholder="password" />
@@ -44,6 +57,12 @@
                         <a id="TFS-Login" asp-page="./login">Login with TFS Account</a>
                     </p>
                     <p>
+                        <a id="crims-Login" asp-page="./crimslogin">Login via CRIMS</a>
+                    </p>
+                    <p>
+                        <a id="RapidAML-Login" asp-page="./rapidamllogin">Login via RapidAML</a>
+                    </p>
+                    <p>
                         <a id="forgot-password" asp-page="./ForgotPassword">Forgot your password?</a>
                     </p>
                     <p>
@@ -60,4 +79,24 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+
+
+    <!-- Select2 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <!-- Select2 Bootstrap 5 Theme -->
+    <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+
+    <!-- Select2 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+    <script>
+        $(document).ready(function() {
+            $('#organizationSelect').select2({
+                theme: 'bootstrap-5',
+                placeholder: '-- Select --',
+                allowClear: true,
+                width: '100%'
+            });
+        });
+    </script>
 }

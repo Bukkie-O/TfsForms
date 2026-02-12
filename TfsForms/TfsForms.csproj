@@ -8,9 +8,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Components\Pages\ResponsePages\**" />
     <Compile Remove="wwwroot\NewFolder\**" />
+    <Content Remove="Components\Pages\ResponsePages\**" />
     <Content Remove="wwwroot\NewFolder\**" />
+    <EmbeddedResource Remove="Components\Pages\ResponsePages\**" />
     <EmbeddedResource Remove="wwwroot\NewFolder\**" />
+    <None Remove="Components\Pages\ResponsePages\**" />
     <None Remove="wwwroot\NewFolder\**" />
   </ItemGroup>
 
@@ -30,6 +34,10 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.9" />
     <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="9.0.0" />
     <PackageReference Include="Radzen.Blazor" Version="8.0.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Components\Pages\" />
   </ItemGroup>
 
 </Project>

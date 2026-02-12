@@ -6,7 +6,7 @@ namespace TfsForms.Models
     {
         [Key]
         public int Id { get; set; }
-        public string CRIMSId { get; set; }
+        public string CRIMSDomain { get; set; }
         public string LEA { get; set; }
     }
 }
